@@ -141,6 +141,7 @@
   .reslines{display:inline-block;text-align:left;margin:14px auto;background:var(--card);border-radius:14px;padding:14px 18px;min-width:240px}
   .reslines div{display:flex;justify-content:space-between;gap:24px;padding:3px 0}
   .hidden{display:none!important}
+  .btn-clear{display:block;margin:26px auto 8px;color:var(--red);font-weight:600;font-size:14px;padding:10px 18px;border-radius:12px;background:color-mix(in srgb,var(--red) 10%,transparent)}
 </style>
 </head>
 <body>
@@ -215,6 +216,7 @@
   <section id="txnsView" class="hidden">
     <input class="search" id="search" placeholder="Search merchant or category" />
     <div id="txnList"></div>
+    <button id="clearData" class="btn-clear">Clear all data</button>
   </section>
 </div>
 
@@ -281,16 +283,16 @@ const CATS = {
   other:{label:"Other",icon:"▦",color:"var(--c-other)"}
 };
 const CAT_KEYWORDS = [
-  ["groceries",["grocer","supermarket","market","whole foods","trader"]],
-  ["dining",["dining","restaurant","coffee","cafe","bar","fast food","takeout","eat","chipotle","starbucks"]],
-  ["transport",["transport","gas","fuel","uber","lyft","transit","parking","car","auto","metro","shell"]],
-  ["shopping",["shop","retail","amazon","clothing","apparel","store","apple store"]],
-  ["entertainment",["entertain","movie","music","game","stream","netflix","spotify","hobby"]],
-  ["bills",["bill","utilit","electric","water","internet","phone","insurance","subscription","verizon","pg&e"]],
-  ["health",["health","medical","pharmacy","doctor","fitness","gym","dental","cvs","equinox"]],
-  ["travel",["travel","flight","hotel","airbnb","airline","vacation","delta"]],
-  ["housing",["rent","mortgage","housing","home"]],
-  ["income",["income","salary","payroll","deposit","refund","payment received"]]
+  ["groceries",["grocer","supermarket","whole foods","trader joe","safeway","kroger","aldi","costco","publix","wegman","sprouts","instacart","food lion","meijer","harris teeter","giant eagle","farms","foods","h mart","99 ranch","ranch market","mayuri"]],
+  ["dining",["restaurant","cafe","coffee","starbucks","dunkin","chipotle","mcdonald","burger","pizza","taco","kfc","subway","panera","chick-fil","wendy","popeyes","doordash","grubhub","uber eats","ubereats","postmates","deli","diner","bakery","grill","bistro","eatery","farzi","crumbl","boba","bubble tea","thai","sushi","ramen","pho","noodle","cookie","vegetarian","kitchen","kabob","curry"]],
+  ["transport",["uber","lyft","fuel","gas station","shell","chevron","exxon","mobil","texaco","arco","parking","transit","toll","dmv","tesla","ev charg","car wash"]],
+  ["shopping",["amazon","amzn","target","walmart","ebay","etsy","best buy","bestbuy","ikea","nike","adidas","nordstrom","macy","home depot","lowe","homegoods","wayfair","lego","apple store","shoperies","lakeshore","dollar tree","dollar general","old navy","shein","uniqlo","h&m","marshalls","tj maxx","ross dress","costco wholesale","store","shop"]],
+  ["entertainment",["netflix","spotify","hulu","hbo","disney+","disney plus","youtube","twitch","playstation","xbox","nintendo","steam","fandango","cinema","movie","amc","regal","concert","ticketmaster","theater","theatre"]],
+  ["bills",["verizon","at&t","t-mobile","tmobile","comcast","xfinity","spectrum","energy","electric","water bill","water district","waste water","sewer","pud","internet","insurance","geico","state farm","allstate","progressive","icloud","adobe","microsoft","dropbox","subscription","utilit","puget sound"]],
+  ["health",["pharmacy","cvs","walgreens","rite aid","kaiser","clinic","hospital","dental","dentist","optometr","vision","therapy","gym","fitness","equinox","planet fitness","medical","pearle"]],
+  ["travel",["airline","airlines","flight","delta","united air","southwest","jetblue","alaska air","hotel","marriott","hilton","hyatt","airbnb","expedia","booking.com","hertz","avis","rent-a-car","rental car","cruise","resort","vacation"]],
+  ["housing",["rent","mortgage","landlord","hoa","apartment","leasing","property mgmt"]],
+  ["income",["payroll","salary","direct deposit","paycheck","dividend","refund","reimburse","cashback"]]
 ];
 function catFromRaw(raw){
   const s=(raw||"").toLowerCase().trim();
@@ -364,18 +366,27 @@ function parseAmount(raw){
   return neg?-v:v;
 }
 /* column auto-detect */
-function autoMap(headers){
+function autoMap(headers, rows){
   const low=headers.map(h=>h.toLowerCase().trim());
   const find=(keys)=>{ for(let i=0;i<low.length;i++) if(keys.includes(low[i])) return i;
                        for(let i=0;i<low.length;i++) if(keys.some(k=>low[i].includes(k))) return i; return -1; };
   const m={
-    date:find(["date","transaction date","posted date","posting date","time"]),
-    merchant:find(["description","merchant","name","payee","details","memo","narration"]),
+    date:find(["date","transaction date","posted date","posting date"]),
+    merchant:find(["merchant","description","name","payee","details","memo","narration"]),
     amount:find(["amount","value","debit","withdrawal","charge","transaction amount"]),
-    category:find(["category","type","classification","tag"]),
+    category:find(["category","categories","classification","tag","tags"]),
     incPositive:true
   };
-  if(m.amount>=0){ const n=low[m.amount]; if(/debit|withdrawal|charge/.test(n)) m.incPositive=false; }
+  if(m.date<0) m.date=find(["time","datetime"]);
+  // Decide the sign convention from the data: a mostly-positive statement is a
+  // spending export (positive = expense); mostly-negative is a bank-account
+  // export (positive = income, e.g. salary alongside many debits).
+  if(m.amount>=0 && rows && rows.length){
+    let pos=0,neg=0;
+    for(const r of rows){ const v=parseAmount(r[m.amount]); if(v==null) continue; if(v>0) pos++; else if(v<0) neg++; }
+    m.incPositive = neg>pos;
+  }
+  if(m.amount>=0 && /\bdebit\b|withdrawal|charge/.test(low[m.amount]||"")) m.incPositive=false;
   return m;
 }
 
@@ -576,7 +587,7 @@ function handleFile(file){
   reader.onload=()=>{ const text=reader.result;
     parsed=parseCSV(String(text||""));
     if(!parsed.headers.length){ alert("No columns detected in that file."); return; }
-    mapping=autoMap(parsed.headers);
+    mapping=autoMap(parsed.headers, parsed.rows);
     $("#fileMeta").textContent=`${file.name} · ${parsed.rows.length} rows`;
     fillSelects(); buildPreview(); showStep("map");
   };
@@ -614,7 +625,10 @@ function runImport(){
     const merchant=(row[m.merchant]||"").trim()||"Unknown";
     const catRaw=m.category>=0?(row[m.category]||"").trim():"";
     const amount=m.incPositive? -amtRaw : amtRaw;    // app convention: positive = expense
-    out.push({date,merchant,amount,cat:catFromRaw(catRaw),key:dedupeKey(date,amount,merchant)});
+    let cat=catFromRaw(catRaw);
+    if(cat==="other") cat=catFromRaw(merchant);      // infer from merchant when no usable category column
+    if(cat==="other" && amount<0) cat="income";      // money in with no better match
+    out.push({date,merchant,amount,cat,key:dedupeKey(date,amount,merchant)});
   }
   const {imported,dupes}=addTransactions(out);
   $("#resLines").innerHTML=
@@ -657,6 +671,7 @@ $("#scrim").addEventListener("click",e=>{ if(e.target===$("#scrim")) closeSheet(
 $("#prevMonth").onclick=()=>{ selMonth=new Date(selMonth.getFullYear(),selMonth.getMonth()-1,1); renderOverview(); };
 $("#nextMonth").onclick=()=>{ if($("#nextMonth").disabled)return; selMonth=new Date(selMonth.getFullYear(),selMonth.getMonth()+1,1); renderOverview(); };
 $("#search").addEventListener("input",renderTxns);
+$("#clearData").onclick=()=>{ if(confirm("Delete all imported transactions from this browser? This cannot be undone.")){ TXNS=[]; save(); tab="overview"; render(); } };
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; render(); });
 // file picking + drag/drop
 $("#drop").onclick=()=>$("#file").click();
