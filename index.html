@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Spendly — see where your money goes</title>
+<meta name="description" content="Import a CSV of your transactions and see a clean dashboard of your spending. Private and free — your data never leaves your browser." />
+<meta name="theme-color" content="#6a54eb" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Spendly" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta property="og:title" content="Spendly" />
+<meta property="og:description" content="See where your money goes. Private, free, and all in your browser." />
+<meta property="og:type" content="website" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236a54eb'/%3E%3Cstop offset='1' stop-color='%23a654eb'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='%23fff' stroke-width='9' stroke-dasharray='55 100' transform='rotate(-90 32 32)'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='%23fff' stroke-opacity='.5' stroke-width='9' stroke-dasharray='39 100' stroke-dashoffset='-55' transform='rotate(-90 32 32)'/%3E%3C/svg%3E" />
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236a54eb'/%3E%3Cstop offset='1' stop-color='%23a654eb'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' fill='url(%23g)'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='%23fff' stroke-width='9' stroke-dasharray='55 100' transform='rotate(-90 32 32)'/%3E%3C/svg%3E" />
+<style>
+  :root{
+    --accent:#6a54eb; --accent-2:#a654eb;
+    --bg:#f2f2f7; --card:#ffffff; --text:#111; --muted:#6b7280; --line:#e5e7eb;
+    --green:#1fa565; --red:#e5484d; --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05);
+    --radius:20px;
+    --c-groceries:#34c759; --c-dining:#ff9500; --c-transport:#007aff; --c-shopping:#ff2d92;
+    --c-entertainment:#af52de; --c-bills:#ffcc00; --c-health:#ff3b30; --c-travel:#30b0c7;
+    --c-housing:#a2845e; --c-income:#00c7a3; --c-other:#8e8e93;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#000; --card:#1c1c1e; --text:#f2f2f7; --muted:#9a9aa2; --line:#2c2c2e;
+           --shadow:0 1px 3px rgba(0,0,0,.4); }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;overflow-x:hidden}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--text);line-height:1.4;
+       padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+  .wrap{max-width:720px;margin:0 auto;padding:16px 16px 96px}
+  h1{font-size:34px;font-weight:800;letter-spacing:-.02em;margin:8px 0 4px}
+  .sub{color:var(--muted);font-size:14px}
+  button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  .btn{background:var(--accent);color:#fff;border-radius:14px;padding:14px 18px;font-weight:600;font-size:16px;
+       display:inline-flex;align-items:center;gap:8px;justify-content:center;transition:filter .15s}
+  .btn:hover{filter:brightness(1.07)}
+  .btn.block{width:100%}
+  .btn.ghost{background:transparent;color:var(--accent);font-weight:600}
+  .btn.sec{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+  .iconbtn{width:42px;height:42px;border-radius:50%;background:var(--card);box-shadow:var(--shadow);
+           display:grid;place-items:center;font-size:18px}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .row{display:flex;align-items:center;gap:12px}
+  .between{justify-content:space-between}
+  .muted{color:var(--muted)}
+  .headerbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  /* month picker */
+  .month{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 16px}
+  .month b{font-size:17px}
+  .chev{font-size:22px;color:var(--accent);width:40px;height:40px;display:grid;place-items:center;border-radius:50%}
+  .chev[disabled]{color:var(--muted);opacity:.4;cursor:default}
+  /* stat */
+  .stat .label{color:var(--muted);font-size:15px}
+  .stat .amount{font-size:40px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0 8px}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;padding:5px 11px;border-radius:999px}
+  .pill.down{color:var(--green);background:color-mix(in srgb,var(--green) 15%,transparent)}
+  .pill.up{color:var(--red);background:color-mix(in srgb,var(--red) 15%,transparent)}
+  .capt{font-size:13px;color:var(--muted);margin-top:8px}
+  .h{font-weight:700;font-size:17px;margin:0 0 14px}
+  /* donut */
+  .donutwrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .donut{position:relative;width:168px;height:168px;flex:0 0 auto}
+  .donut .center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+  .donut .center small{display:block;color:var(--muted);font-size:12px}
+  .donut .center b{font-size:18px;font-weight:800}
+  .legend{flex:1 1 180px;min-width:170px;display:flex;flex-direction:column;gap:9px}
+  .legend .lg{display:flex;align-items:center;gap:8px;font-size:15px}
+  .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+  .legend .pct{margin-left:auto;font-weight:600;color:var(--muted)}
+  /* breakdown */
+  .cat{display:grid;grid-template-columns:38px minmax(0,1fr) auto 12px;align-items:center;gap:12px;padding:11px 0;cursor:pointer}
+  .cat+.cat{border-top:1px solid var(--line)}
+  .cicon{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:17px;flex:0 0 auto}
+  .cat .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:5px}
+  .cat .bar>i{display:block;height:100%;border-radius:3px}
+  .cat .name{font-weight:600}
+  .cat .amt{font-weight:700;text-align:right;white-space:nowrap}
+  .cat .amt small{display:block;color:var(--muted);font-weight:500;font-size:12px}
+  .chevr{color:var(--muted)}
+  /* tabs */
+  .tabs{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:8px;
+        padding:10px 10px calc(10px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 82%,transparent);
+        backdrop-filter:saturate(180%) blur(20px);border-top:1px solid var(--line)}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);padding:6px 22px;border-radius:14px}
+  .tab.active{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .tab .ic{font-size:20px}
+  /* list */
+  .search{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);
+          color:var(--text);font-size:16px;margin-bottom:12px}
+  .msection{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:18px 4px 8px}
+  .txn{display:flex;align-items:center;gap:12px;padding:10px 0}
+  .txn+.txn{border-top:1px solid var(--line)}
+  .txn .m{font-weight:600}
+  .txn .d{font-size:13px;color:var(--muted)}
+  .txn .v{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
+  .txn .v.inc{color:var(--green)}
+  /* empty */
+  .empty{min-height:72vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:14px}
+  .empty .glyph{font-size:62px}
+  .empty h2{font-size:26px;font-weight:800;margin:4px 0 0}
+  .empty p{color:var(--muted);max-width:340px;margin:0 auto}
+  /* modal */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .scrim.show{display:flex}
+  .sheet{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px}
+  @media(min-width:560px){.scrim{align-items:center}.sheet{border-radius:22px}}
+  .sheet h3{margin:4px 0 14px;font-size:20px;font-weight:800}
+  .drop{border:2px dashed var(--line);border-radius:16px;padding:30px 16px;text-align:center;color:var(--muted);cursor:pointer}
+  .drop.drag{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,transparent)}
+  .field{margin:10px 0}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+  select,.toggle{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:15px}
+  .togglerow{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .preview{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:13px}
+  .preview .pr{padding:6px 0}.preview .pr+.pr{border-top:1px solid var(--line)}
+  .close{position:sticky;top:0;float:right}
+  .success{text-align:center;padding:20px 0}
+  .success .big{font-size:58px;color:var(--green)}
+  .reslines{display:inline-block;text-align:left;margin:14px auto;background:var(--card);border-radius:14px;padding:14px 18px;min-width:240px}
+  .reslines div{display:flex;justify-content:space-between;gap:24px;padding:3px 0}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headerbar">
+    <div><h1>Spendly</h1><div class="sub" id="privacyNote">Your data stays in this browser.</div></div>
+    <button class="iconbtn" id="importTop" title="Import CSV" aria-label="Import CSV">⬇︎</button>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <section id="emptyView" class="empty">
+    <div class="glyph">📊</div>
+    <h2>Welcome to Spendly</h2>
+    <p>Import a CSV of your transactions to see where your money goes.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;width:260px">
+      <button class="btn block" id="emptyImport">⬇︎ Import CSV</button>
+      <button class="btn ghost" id="emptySample">Try with sample data</button>
+    </div>
+  </section>
+
+  <!-- OVERVIEW -->
+  <section id="overviewView" class="hidden">
+    <div class="month">
+      <button class="chev" id="prevMonth">‹</button>
+      <b id="monthLabel">—</b>
+      <button class="chev" id="nextMonth">›</button>
+    </div>
+    <div class="card stat">
+      <div class="label" id="spentLabel">Spent</div>
+      <div class="amount" id="spentAmount">$0</div>
+      <div id="trendWrap"></div>
+      <div class="capt" id="incomeCapt"></div>
+    </div>
+    <div class="card" id="trendCard">
+      <p class="h">Daily spend</p>
+      <div id="lineChart"></div>
+    </div>
+    <div class="card" id="donutCard">
+      <p class="h">By category</p>
+      <div class="donutwrap">
+        <div class="donut"><div id="donutSvg"></div><div class="center"><small>Total</small><b id="donutTotal">$0</b></div></div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+    <div class="card" id="breakdownCard">
+      <p class="h">Spending breakdown</p>
+      <div id="breakdown"></div>
+    </div>
+    <div class="card hidden" id="noSpend"><div class="muted" style="text-align:center;padding:16px">No spending recorded this month.</div></div>
+  </section>
+
+  <!-- TRANSACTIONS -->
+  <section id="txnsView" class="hidden">
+    <input class="search" id="search" placeholder="Search merchant or category" />
+    <div id="txnList"></div>
+  </section>
+</div>
+
+<!-- TAB BAR -->
+<nav class="tabs" id="tabbar">
+  <button class="tab active" data-tab="overview"><span class="ic">◔</span>Overview</button>
+  <button class="tab" data-tab="txns"><span class="ic">≣</span>Transactions</button>
+</nav>
+
+<!-- IMPORT SHEET -->
+<div class="scrim" id="scrim">
+  <div class="sheet">
+    <button class="close iconbtn" id="closeSheet" aria-label="Close">✕</button>
+    <div id="stepPick">
+      <h3>Import CSV</h3>
+      <p class="muted" style="margin-top:0">Exported from your bank or a spreadsheet. Columns can be in any order — you'll confirm the mapping next.</p>
+      <div class="drop" id="drop">
+        <div style="font-size:40px">📄</div>
+        <div>Drop a .csv here, or <b style="color:var(--accent)">choose a file</b></div>
+      </div>
+      <input type="file" id="file" accept=".csv,text/csv,text/plain" class="hidden" />
+    </div>
+    <div id="stepMap" class="hidden">
+      <h3>Match your columns</h3>
+      <div class="muted" id="fileMeta" style="margin-bottom:10px"></div>
+      <div class="field"><label>Date</label><select id="mapDate"></select></div>
+      <div class="field"><label>Description</label><select id="mapMerchant"></select></div>
+      <div class="field"><label>Amount</label><select id="mapAmount"></select></div>
+      <div class="field"><label>Category (optional)</label><select id="mapCategory"></select></div>
+      <div class="field">
+        <div class="togglerow">
+          <span style="font-size:14px">A positive amount means money <b>in</b></span>
+          <input type="checkbox" id="incPositive" checked style="width:auto;transform:scale(1.3)" />
+        </div>
+        <div class="muted" style="font-size:12px;margin-top:6px">On: deposits are positive, spending negative. Off: for bank "debit" columns where spending is positive.</div>
+      </div>
+      <label class="muted" style="font-size:13px">Preview</label>
+      <div class="preview" id="preview"></div>
+      <button class="btn block" id="doImport" style="margin-top:14px">Import</button>
+    </div>
+    <div id="stepDone" class="hidden success">
+      <div class="big">✓</div>
+      <h3 style="text-align:center">Import complete</h3>
+      <div class="reslines" id="resLines"></div>
+      <div><button class="btn" id="finishImport">Done</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ---------------- Categories ---------------- */
+const CATS = {
+  groceries:{label:"Groceries",icon:"🛒",color:"var(--c-groceries)"},
+  dining:{label:"Dining",icon:"🍴",color:"var(--c-dining)"},
+  transport:{label:"Transport",icon:"🚗",color:"var(--c-transport)"},
+  shopping:{label:"Shopping",icon:"🛍️",color:"var(--c-shopping)"},
+  entertainment:{label:"Entertainment",icon:"🎬",color:"var(--c-entertainment)"},
+  bills:{label:"Bills & Utilities",icon:"⚡️",color:"var(--c-bills)"},
+  health:{label:"Health",icon:"➕",color:"var(--c-health)"},
+  travel:{label:"Travel",icon:"✈️",color:"var(--c-travel)"},
+  housing:{label:"Housing",icon:"🏠",color:"var(--c-housing)"},
+  income:{label:"Income",icon:"⬇︎",color:"var(--c-income)"},
+  other:{label:"Other",icon:"▦",color:"var(--c-other)"}
+};
+const CAT_KEYWORDS = [
+  ["groceries",["grocer","supermarket","market","whole foods","trader"]],
+  ["dining",["dining","restaurant","coffee","cafe","bar","fast food","takeout","eat","chipotle","starbucks"]],
+  ["transport",["transport","gas","fuel","uber","lyft","transit","parking","car","auto","metro","shell"]],
+  ["shopping",["shop","retail","amazon","clothing","apparel","store","apple store"]],
+  ["entertainment",["entertain","movie","music","game","stream","netflix","spotify","hobby"]],
+  ["bills",["bill","utilit","electric","water","internet","phone","insurance","subscription","verizon","pg&e"]],
+  ["health",["health","medical","pharmacy","doctor","fitness","gym","dental","cvs","equinox"]],
+  ["travel",["travel","flight","hotel","airbnb","airline","vacation","delta"]],
+  ["housing",["rent","mortgage","housing","home"]],
+  ["income",["income","salary","payroll","deposit","refund","payment received"]]
+];
+function catFromRaw(raw){
+  const s=(raw||"").toLowerCase().trim();
+  if(!s) return "other";
+  if(CATS[s]) return s;
+  for(const [key,kw] of CAT_KEYWORDS){ if(kw.some(k=>s.includes(k))) return key; }
+  return "other";
+}
+
+/* ---------------- Money ---------------- */
+const CURRENCY = (()=>{ try{ return (new Intl.NumberFormat().resolvedOptions().currency)||"USD"; }catch(e){ return "USD"; } })() || "USD";
+const fmt = new Intl.NumberFormat(undefined,{style:"currency",currency:CURRENCY});
+function money(v,sign){ const s=fmt.format(v); return (sign&&v>0)?("+"+s):s; }
+function compact(v){
+  const sym=(fmt.formatToParts(0).find(p=>p.type==="currency")||{value:"$"}).value;
+  const a=Math.abs(v), sg=v<0?"-":"";
+  if(a>=1e6) return sg+sym+(a/1e6).toFixed(a>=1e7?0:1)+"M";
+  if(a>=1e3) return sg+sym+(a/1e3).toFixed(a>=1e4?0:1)+"K";
+  return sg+sym+Math.round(a);
+}
+
+/* ---------------- CSV parsing ---------------- */
+function detectDelimiter(line){
+  const c=(line.match(/,/g)||[]).length, s=(line.match(/;/g)||[]).length, t=(line.match(/\t/g)||[]).length;
+  if(t>c&&t>s) return "\t"; return s>c?";":",";
+}
+function parseCSV(text){
+  text=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  const delim=detectDelimiter(text.split("\n",1)[0]||"");
+  const rows=[]; let field="",row=[],q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){field+='"';i++;} else q=false; }
+      else field+=ch;
+    }else{
+      if(ch==='"') q=true;
+      else if(ch===delim){ row.push(field); field=""; }
+      else if(ch==="\n"){ row.push(field); field=""; rows.push(row); row=[]; }
+      else field+=ch;
+    }
+  }
+  if(field!==""||row.length){ row.push(field); rows.push(row); }
+  if(!rows.length) return {headers:[],rows:[]};
+  const headers=rows.shift().map(h=>h.trim());
+  const body=rows.filter(r=>r.some(c=>c.trim()!==""));
+  return {headers,rows:body};
+}
+const DATE_RE=[
+  s=>/^\d{4}-\d{2}-\d{2}/.test(s)&&new Date(s),
+  s=>{const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m&&new Date(+m[3],+m[1]-1,+m[2]);}, // MM/DD/YYYY
+  s=>{const m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);return m&&new Date(+m[3],+m[2]-1,+m[1]);}, // DD.MM.YYYY
+  s=>{const m=s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);return m&&new Date(+m[3],+m[1]-1,+m[2]);},
+  s=>{const d=new Date(s);return isNaN(d)?null:d;}
+];
+function parseDate(raw){
+  const s=(raw||"").trim(); if(!s) return null;
+  for(const f of DATE_RE){ const d=f(s); if(d&&!isNaN(d)) return d; }
+  return null;
+}
+function parseAmount(raw){
+  let s=(raw||"").trim(); if(!s) return null;
+  let neg=false;
+  if(s.startsWith("(")&&s.endsWith(")")){neg=true;s=s.slice(1,-1);}
+  if(s.startsWith("-")){neg=true;s=s.slice(1);}
+  if(s.startsWith("+"))s=s.slice(1);
+  s=s.replace(/[^0-9.,]/g,"");
+  if(s.includes(",")&&s.includes(".")) s=s.replace(/,/g,"");
+  else if(s.includes(",")&&!s.includes(".")) s=s.replace(",",".");
+  const v=parseFloat(s); if(isNaN(v)) return null;
+  return neg?-v:v;
+}
+/* column auto-detect */
+function autoMap(headers){
+  const low=headers.map(h=>h.toLowerCase().trim());
+  const find=(keys)=>{ for(let i=0;i<low.length;i++) if(keys.includes(low[i])) return i;
+                       for(let i=0;i<low.length;i++) if(keys.some(k=>low[i].includes(k))) return i; return -1; };
+  const m={
+    date:find(["date","transaction date","posted date","posting date","time"]),
+    merchant:find(["description","merchant","name","payee","details","memo","narration"]),
+    amount:find(["amount","value","debit","withdrawal","charge","transaction amount"]),
+    category:find(["category","type","classification","tag"]),
+    incPositive:true
+  };
+  if(m.amount>=0){ const n=low[m.amount]; if(/debit|withdrawal|charge/.test(n)) m.incPositive=false; }
+  return m;
+}
+
+/* ---------------- Store ---------------- */
+const KEY="spendly.txns.v1";
+let TXNS=load();
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY)||"[]").map(t=>({...t,date:new Date(t.date)})); }catch(e){ return []; } }
+function save(){ localStorage.setItem(KEY,JSON.stringify(TXNS.map(t=>({...t,date:t.date.toISOString()})))); }
+function dedupeKey(date,amount,merchant){
+  return Math.floor(date.getTime()/864e5)+"|"+Math.round(amount*100)+"|"+(merchant||"").trim().toLowerCase();
+}
+function addTransactions(list){
+  const seen=new Set(TXNS.map(t=>t.key));
+  let imported=0,dupes=0;
+  for(const t of list){ if(seen.has(t.key)){dupes++;continue;} seen.add(t.key); TXNS.push(t); imported++; }
+  TXNS.sort((a,b)=>b.date-a.date); save();
+  return {imported,dupes};
+}
+
+/* ---------------- Analytics ---------------- */
+const sameMonth=(d,ref)=>d.getFullYear()===ref.getFullYear()&&d.getMonth()===ref.getMonth();
+const isExpense=t=>t.amount>0;
+function inMonth(ref){ return TXNS.filter(t=>sameMonth(t.date,ref)); }
+function total(list){ return list.filter(isExpense).reduce((s,t)=>s+t.amount,0); }
+function income(list){ return list.filter(t=>!isExpense(t)).reduce((s,t)=>s-t.amount,0); }
+function byCategory(list){
+  const g={}; for(const t of list.filter(isExpense)) g[t.cat]=(g[t.cat]||0)+t.amount;
+  const sum=Object.values(g).reduce((a,b)=>a+b,0);
+  return Object.entries(g).map(([cat,tot])=>({cat,total:tot,frac:sum?tot/sum:0})).sort((a,b)=>b.total-a.total);
+}
+function dailyTotals(ref){
+  const y=ref.getFullYear(),m=ref.getMonth(),days=new Date(y,m+1,0).getDate();
+  const arr=Array.from({length:days},(_,i)=>({day:i+1,date:new Date(y,m,i+1),total:0}));
+  for(const t of inMonth(ref).filter(isExpense)) arr[t.date.getDate()-1].total+=t.amount;
+  return arr;
+}
+function pctChange(cur,prev){ return prev>0?(cur-prev)/prev:null; }
+
+/* ---------------- State ---------------- */
+let selMonth=new Date();
+let tab="overview";
+
+/* ---------------- Rendering ---------------- */
+const $=s=>document.querySelector(s);
+const el=(t,c,txt)=>{const e=document.createElement(t);if(c)e.className=c;if(txt!=null)e.textContent=txt;return e;};
+const monthFmt=new Intl.DateTimeFormat(undefined,{month:"long",year:"numeric"});
+const monthOnly=new Intl.DateTimeFormat(undefined,{month:"long"});
+const dateFmt=new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",year:"numeric"});
+
+function render(){
+  const has=TXNS.length>0;
+  $("#emptyView").classList.toggle("hidden",has);
+  $("#tabbar").classList.toggle("hidden",!has);
+  $("#overviewView").classList.toggle("hidden",!has||tab!=="overview");
+  $("#txnsView").classList.toggle("hidden",!has||tab!=="txns");
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
+  if(!has) return;
+  if(tab==="overview") renderOverview(); else renderTxns();
+}
+
+function renderOverview(){
+  const now=new Date();
+  const curIsThis=sameMonth(selMonth,now);
+  $("#nextMonth").disabled=curIsThis;
+  $("#monthLabel").textContent=monthFmt.format(selMonth);
+  const month=inMonth(selMonth);
+  const prev=new Date(selMonth.getFullYear(),selMonth.getMonth()-1,1);
+  const t=total(month);
+  $("#spentLabel").textContent="Spent in "+monthOnly.format(selMonth);
+  $("#spentAmount").textContent=money(t);
+  // trend
+  const ch=pctChange(t,total(inMonth(prev)));
+  const tw=$("#trendWrap"); tw.innerHTML="";
+  if(ch!=null){
+    const up=ch>=0;
+    const pill=el("span","pill "+(up?"up":"down"));
+    pill.innerHTML=(up?"↗":"↘")+" "+new Intl.NumberFormat(undefined,{style:"percent",maximumFractionDigits:0}).format(ch)+
+      " <span style='color:var(--muted);font-weight:500'>vs last month</span>";
+    tw.appendChild(pill);
+  }
+  const inc=income(month);
+  $("#incomeCapt").textContent = inc>0 ? `Income ${money(inc)} · Net ${money(inc-t,true)}` : "";
+
+  const cats=byCategory(month);
+  const empty=cats.length===0;
+  $("#trendCard").classList.toggle("hidden",empty);
+  $("#donutCard").classList.toggle("hidden",empty);
+  $("#breakdownCard").classList.toggle("hidden",empty);
+  $("#noSpend").classList.toggle("hidden",!empty);
+  if(empty) return;
+
+  drawLine(dailyTotals(selMonth));
+  drawDonut(cats);
+  drawBreakdown(cats);
+}
+
+function drawDonut(cats){
+  const R=74,SW=26,C=2*Math.PI*R, cx=84,cy=84;
+  let off=0, seg="";
+  for(const c of cats){
+    const len=c.frac*C;
+    seg+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${CATS[c.cat].color}" stroke-width="${SW}"
+      stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    off+=len;
+  }
+  $("#donutSvg").innerHTML=`<svg viewBox="0 0 168 168" width="168" height="168">${seg}</svg>`;
+  $("#donutTotal").textContent=compact(cats.reduce((s,c)=>s+c.total,0));
+  const lg=$("#legend"); lg.innerHTML="";
+  cats.slice(0,6).forEach(c=>{
+    const r=el("div","lg");
+    r.innerHTML=`<span class="dot" style="background:${CATS[c.cat].color}"></span>${CATS[c.cat].label}
+      <span class="pct">${new Intl.NumberFormat(undefined,{style:"percent",maximumFractionDigits:0}).format(c.frac)}</span>`;
+    lg.appendChild(r);
+  });
+}
+
+function drawLine(data){
+  const W=620,H=200,P={l:46,r:12,t:12,b:26};
+  const max=Math.max(...data.map(d=>d.total),1);
+  const niceMax=Math.ceil(max/50)*50||50;
+  const iw=W-P.l-P.r, ih=H-P.t-P.b;
+  const x=i=>P.l+(data.length<=1?0:(i/(data.length-1))*iw);
+  const y=v=>P.t+ih-(v/niceMax)*ih;
+  const pts=data.map((d,i)=>[x(i),y(d.total)]);
+  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+  const area=`M${P.l} ${P.t+ih} `+pts.map(p=>"L"+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ")+` L${x(data.length-1)} ${P.t+ih} Z`;
+  // y gridlines
+  let grid="";
+  [0,0.5,1].forEach(f=>{const v=niceMax*f,yy=y(v);
+    grid+=`<line x1="${P.l}" y1="${yy}" x2="${W-P.r}" y2="${yy}" stroke="var(--line)"/>
+           <text x="${P.l-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="var(--muted)">${compact(v)}</text>`;});
+  // x labels every ~7 days
+  let xl="";
+  data.forEach((d,i)=>{ if(i%7===0){
+    xl+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${d.date.getMonth()+1}/${d.day}</text>`;}});
+  $("#lineChart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="var(--accent)" stop-opacity=".35"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
+    </linearGradient></defs>
+    ${grid}<path d="${area}" fill="url(#g)"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${xl}
+  </svg>`;
+}
+
+function drawBreakdown(cats){
+  const box=$("#breakdown"); box.innerHTML="";
+  cats.forEach(c=>{
+    const row=el("div","cat");
+    row.innerHTML=`<div class="cicon" style="background:${CATS[c.cat].color}">${CATS[c.cat].icon}</div>
+      <div style="flex:1;min-width:0"><div class="name">${CATS[c.cat].label}</div>
+        <div class="bar"><i style="width:${(c.frac*100).toFixed(1)}%;background:${CATS[c.cat].color}"></i></div></div>
+      <div class="amt">${money(c.total)}<small>${new Intl.NumberFormat(undefined,{style:"percent",maximumFractionDigits:0}).format(c.frac)}</small></div>
+      <div class="chevr">›</div>`;
+    row.onclick=()=>openCategory(c.cat);
+    box.appendChild(row);
+  });
+}
+
+/* transactions list */
+function renderTxns(){
+  const q=($("#search").value||"").toLowerCase();
+  const list=TXNS.filter(t=> !q || t.merchant.toLowerCase().includes(q) || CATS[t.cat].label.toLowerCase().includes(q));
+  const box=$("#txnList"); box.innerHTML="";
+  if(!list.length){ box.innerHTML=`<div class="muted" style="text-align:center;padding:40px">No matching transactions.</div>`; return; }
+  const groups={};
+  list.forEach(t=>{ const k=t.date.getFullYear()+"-"+String(t.date.getMonth()).padStart(2,"0"); (groups[k]=groups[k]||[]).push(t); });
+  Object.keys(groups).sort().reverse().forEach(k=>{
+    const first=groups[k][0];
+    box.appendChild(el("div","msection",monthFmt.format(first.date)));
+    const card=el("div","card"); card.style.padding="4px 16px";
+    groups[k].forEach(t=>card.appendChild(txnRow(t)));
+    box.appendChild(card);
+  });
+}
+function txnRow(t){
+  const r=el("div","txn");
+  const exp=isExpense(t);
+  r.innerHTML=`<div class="cicon" style="background:${CATS[t.cat].color};width:34px;height:34px;font-size:15px">${CATS[t.cat].icon}</div>
+    <div style="min-width:0"><div class="m">${escapeHtml(t.merchant)}</div><div class="d">${dateFmt.format(t.date)}</div></div>
+    <div class="v ${exp?"":"inc"}">${money(exp?t.amount:-t.amount, !exp)}</div>`;
+  return r;
+}
+function openCategory(cat){
+  tab="txns"; render();
+  $("#search").value=CATS[cat].label; renderTxns();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ---------------- Import flow ---------------- */
+let parsed=null, mapping=null;
+function openSheet(){ showStep("pick"); $("#scrim").classList.add("show"); }
+function closeSheet(){ $("#scrim").classList.remove("show"); parsed=null; }
+function showStep(s){ $("#stepPick").classList.toggle("hidden",s!=="pick");
+  $("#stepMap").classList.toggle("hidden",s!=="map"); $("#stepDone").classList.toggle("hidden",s!=="done"); }
+
+function handleFile(file){
+  const reader=new FileReader();
+  reader.onload=()=>{ const text=reader.result;
+    parsed=parseCSV(String(text||""));
+    if(!parsed.headers.length){ alert("No columns detected in that file."); return; }
+    mapping=autoMap(parsed.headers);
+    $("#fileMeta").textContent=`${file.name} · ${parsed.rows.length} rows`;
+    fillSelects(); buildPreview(); showStep("map");
+  };
+  reader.readAsText(file);
+}
+function fillSelects(){
+  const opts=(incNone)=>{ let h=incNone?`<option value="-1">None</option>`:""; 
+    parsed.headers.forEach((hd,i)=>h+=`<option value="${i}">${escapeHtml(hd||("Column "+(i+1)))}</option>`); return h; };
+  $("#mapDate").innerHTML=opts(false); $("#mapDate").value=mapping.date;
+  $("#mapMerchant").innerHTML=opts(false); $("#mapMerchant").value=mapping.merchant;
+  $("#mapAmount").innerHTML=opts(false); $("#mapAmount").value=mapping.amount;
+  $("#mapCategory").innerHTML=opts(true); $("#mapCategory").value=mapping.category;
+  $("#incPositive").checked=mapping.incPositive;
+}
+function readMapping(){
+  return { date:+$("#mapDate").value, merchant:+$("#mapMerchant").value, amount:+$("#mapAmount").value,
+           category:+$("#mapCategory").value, incPositive:$("#incPositive").checked };
+}
+function buildPreview(){
+  const m=readMapping(); const box=$("#preview"); box.innerHTML="";
+  const cell=(row,i)=> (i>=0&&i<row.length&&row[i].trim())?escapeHtml(row[i]):"—";
+  parsed.rows.slice(0,3).forEach(row=>{
+    const d=el("div","pr");
+    d.innerHTML=`<b>${cell(row,m.merchant)}</b><div class="muted">${cell(row,m.date)} · ${cell(row,m.amount)}${m.category>=0?" · "+cell(row,m.category):""}</div>`;
+    box.appendChild(d);
+  });
+}
+function runImport(){
+  const m=readMapping();
+  if(m.date<0||m.merchant<0||m.amount<0){ alert("Please match Date, Description and Amount."); return; }
+  let skipped=0; const out=[];
+  for(const row of parsed.rows){
+    const date=parseDate(row[m.date]); const amtRaw=parseAmount(row[m.amount]);
+    if(date==null||amtRaw==null){ skipped++; continue; }
+    const merchant=(row[m.merchant]||"").trim()||"Unknown";
+    const catRaw=m.category>=0?(row[m.category]||"").trim():"";
+    const amount=m.incPositive? -amtRaw : amtRaw;    // app convention: positive = expense
+    out.push({date,merchant,amount,cat:catFromRaw(catRaw),key:dedupeKey(date,amount,merchant)});
+  }
+  const {imported,dupes}=addTransactions(out);
+  $("#resLines").innerHTML=
+    `<div><span>Imported</span><b>${imported}</b></div>`+
+    (dupes?`<div><span>Skipped duplicates</span><b>${dupes}</b></div>`:"")+
+    (skipped?`<div><span>Unreadable rows</span><b>${skipped}</b></div>`:"");
+  selMonth = out.length ? latestMonth() : selMonth;
+  showStep("done");
+}
+function latestMonth(){ const d=TXNS[0]?.date||new Date(); return new Date(d.getFullYear(),d.getMonth(),1); }
+
+/* ---------------- Sample data ---------------- */
+function seedSample(){
+  const merch=[["Whole Foods Market","groceries",20,140],["Trader Joe's","groceries",15,90],
+    ["Starbucks","dining",4,12],["Chipotle","dining",9,24],["Uber","transport",7,45],["Shell Gas","transport",30,70],
+    ["Amazon","shopping",12,180],["Apple Store","shopping",29,399],["Netflix","entertainment",15,15],["Spotify","entertainment",11,11],
+    ["PG&E Electric","bills",60,160],["Verizon","bills",70,90],["CVS Pharmacy","health",8,65],["Equinox Gym","health",185,185],
+    ["Delta Air Lines","travel",180,520],["City Rent","housing",2200,2200]];
+  const now=new Date(), out=[];
+  for(let mo=0;mo<4;mo++){ const d=new Date(now.getFullYear(),now.getMonth()-mo,1);
+    const key=dedupeKey(d,-5200,"Acme Corp Payroll"); out.push({date:d,merchant:"Acme Corp Payroll",amount:-5200,cat:"income",key}); }
+  for(let day=0;day<90;day++){ const d=new Date(); d.setDate(d.getDate()-day);
+    const n=Math.floor(Math.random()*4);
+    for(let k=0;k<n;k++){ const [name,cat,lo,hi]=merch[Math.floor(Math.random()*merch.length)];
+      if(cat==="housing"&&d.getDate()!==1) continue;
+      const amount=Math.round((lo+Math.random()*(hi-lo))*100)/100;
+      out.push({date:new Date(d),merchant:name,amount,cat,key:dedupeKey(d,amount,name)+"|"+day+"|"+k}); } }
+  addTransactions(out); selMonth=new Date(); render();
+}
+
+/* ---------------- Events ---------------- */
+$("#importTop").onclick=openSheet;
+$("#emptyImport").onclick=openSheet;
+$("#emptySample").onclick=seedSample;
+$("#closeSheet").onclick=closeSheet;
+$("#finishImport").onclick=()=>{ closeSheet(); render(); };
+$("#doImport").onclick=runImport;
+$("#scrim").addEventListener("click",e=>{ if(e.target===$("#scrim")) closeSheet(); });
+["mapDate","mapMerchant","mapAmount","mapCategory","incPositive"].forEach(id=>$("#"+id).addEventListener("change",buildPreview));
+$("#prevMonth").onclick=()=>{ selMonth=new Date(selMonth.getFullYear(),selMonth.getMonth()-1,1); renderOverview(); };
+$("#nextMonth").onclick=()=>{ if($("#nextMonth").disabled)return; selMonth=new Date(selMonth.getFullYear(),selMonth.getMonth()+1,1); renderOverview(); };
+$("#search").addEventListener("input",renderTxns);
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; render(); });
+// file picking + drag/drop
+$("#drop").onclick=()=>$("#file").click();
+$("#file").onchange=e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); };
+const drop=$("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
+drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) handleFile(f); });
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Render Blueprint — deploys Spendly as a static site (no build step).
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: spendly
+    runtime: static
+    staticPublishPath: .
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
